@@ -10,6 +10,7 @@ import org.rust.lang.core.psi.ext.QueryAttributes
 import org.rust.lang.core.psi.ext.RsDocAndAttributeOwner
 import org.rust.lang.core.psi.ext.getTraversedRawAttributes
 import org.rust.lang.core.psi.ext.name
+import org.rust.lang.core.resolve.KNOWN_DERIVABLE_TRAITS
 import org.rust.stdext.BitFlagsBuilder
 
 interface RsNamedStub {
@@ -32,11 +33,15 @@ interface RsAttributeOwnerStub {
     // #[macro_use]
     val mayHaveMacroUse: Boolean
 
+    // #[derive(FooBar)]
+    val mayHaveCustomDerive: Boolean
+
     companion object : BitFlagsBuilder(Limit.BYTE) {
         val ATTRS_MASK: Int = nextBitMask()
         val CFG_MASK: Int = nextBitMask()
         val CFG_ATTR_MASK: Int = nextBitMask()
         val HAS_MACRO_USE_MASK: Int = nextBitMask()
+        val HAS_CUSTOM_DERIVE: Int = nextBitMask()
 
         fun extractFlags(element: RsDocAndAttributeOwner): Int =
             extractFlags(element.getTraversedRawAttributes(withCfgAttrAttribute = true))
@@ -46,12 +51,17 @@ interface RsAttributeOwnerStub {
             var hasCfg = false
             var hasCfgAttr = false
             var hasMacroUse = false
+            var hasCustomDerive = false
             for (meta in attrs.metaItems) {
                 hasAttrs = true
                 when (meta.name) {
                     "cfg" -> hasCfg = true
                     "cfg_attr" -> hasCfgAttr = true
                     "macro_use" -> hasMacroUse = true
+                    "derive" -> {
+                        hasCustomDerive = hasCustomDerive || meta.metaItemArgs?.metaItemList.orEmpty()
+                            .any { KNOWN_DERIVABLE_TRAITS[it.name]?.isStd != true }
+                    }
                 }
             }
             var flags = 0
@@ -59,6 +69,7 @@ interface RsAttributeOwnerStub {
             flags = BitUtil.set(flags, CFG_MASK, hasCfg)
             flags = BitUtil.set(flags, CFG_ATTR_MASK, hasCfgAttr)
             flags = BitUtil.set(flags, HAS_MACRO_USE_MASK, hasMacroUse)
+            flags = BitUtil.set(flags, HAS_CUSTOM_DERIVE, hasCustomDerive)
             return flags
         }
     }

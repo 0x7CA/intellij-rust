@@ -7,6 +7,7 @@ package org.rust.lang.core.psi.ext
 
 import com.intellij.util.ProcessingContext
 import org.rust.lang.core.RsPsiPattern
+import org.rust.lang.core.psi.RsFunction
 import org.rust.lang.core.psi.RsMetaItem
 import org.rust.lang.core.psi.RsMetaItemArgs
 import org.rust.lang.core.psi.RsTraitItem
@@ -35,6 +36,12 @@ val RsMetaItem.hasEq: Boolean get() = greenStub?.hasEq ?: (eq != null)
 
 fun RsMetaItem.resolveToDerivedTrait(): RsTraitItem? =
     path?.reference?.multiResolve()?.filterIsInstance<RsTraitItem>()?.singleOrNull()
+
+fun RsMetaItem.resolveToProcMacro(): RsFunction? =
+    path?.reference?.multiResolve()?.filterIsInstance<RsFunction>()?.singleOrNull()
+
+val RsMetaItem.owner: RsDocAndAttributeOwner?
+    get() = ancestorStrict<RsAttr>()?.owner
 
 /**
  * In the case of `#[foo(bar)]`, the `foo(bar)` meta item is considered "root" but `bar` is not.
