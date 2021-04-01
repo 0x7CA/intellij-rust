@@ -19,8 +19,7 @@ import org.rust.lang.core.psi.*
 import org.rust.lang.core.resolve.KnownDerivableTrait
 import org.rust.lang.core.resolve2.resolveToMacroWithoutPsi
 import org.rust.lang.core.resolve2.resolveToProcMacroWithoutPsi
-import org.rust.lang.core.stubs.RsEnumItemStub
-import org.rust.lang.core.stubs.RsStructItemStub
+import org.rust.lang.core.stubs.RsAttrProcMacroOwnerStub
 import org.rust.lang.utils.evaluation.CfgEvaluator
 import org.rust.openapiext.testAssert
 import org.rust.stdext.HashCode
@@ -132,13 +131,9 @@ private fun doPrepareCustomDeriveMacroCallBody(owner: RsStructOrEnumItemElement)
 
 val RsStructOrEnumItemElement.stubbedText: String?
     get() {
-        val stub = (this as StubBasedPsiElementBase<*>).greenStub
+        val stub = (this as StubBasedPsiElementBase<*>).greenStub as? RsAttrProcMacroOwnerStub
         if (stub != null) {
-            return when (stub) {
-                is RsStructItemStub -> stub.procMacroBody
-                is RsEnumItemStub -> stub.procMacroBody
-                else -> error("unreachable")
-            }
+            return stub.procMacroBody
         }
 
         return text
@@ -146,13 +141,9 @@ val RsStructOrEnumItemElement.stubbedText: String?
 
 val RsStructOrEnumItemElement.endOfAttrsOffset: Int
     get() {
-        val stub = (this as StubBasedPsiElementBase<*>).greenStub
+        val stub = (this as StubBasedPsiElementBase<*>).greenStub as? RsAttrProcMacroOwnerStub
         if (stub != null) {
-            return when (stub) {
-                is RsStructItemStub -> stub.endOfAttrsOffset
-                is RsEnumItemStub -> stub.endOfAttrsOffset
-                else -> error("unreachable")
-            }
+            return stub.endOfAttrsOffset
         }
 
         val firstKeyword = firstKeyword ?: return 0
@@ -162,8 +153,24 @@ val RsStructOrEnumItemElement.endOfAttrsOffset: Int
 val RsPossibleMacroCall.bodyHash: HashCode?
     get() = when (this) {
         is RsMacroCall -> bodyHash
-        is RsMetaItem -> macroBody?.let { HashCode.compute(it) }
+        is RsMetaItem -> bodyHash
         else -> error("unreachable")
+    }
+
+private val RsMetaItem.bodyHash: HashCode?
+    get() {
+        val stub = (this as StubBasedPsiElementBase<*>).greenStub as? RsAttrProcMacroOwnerStub
+        if (stub != null) {
+            return stub.bodyHash ?: macroBody?.let { HashCode.compute(it) }
+        }
+        val owner = owner as? RsStructOrEnumItemElement ?: return null
+        return if (owner.rawAttributes.hasAttribute("cfg_attr")) {
+            // There are cfg_attr attributes - the macro body (and hence the hash) depends on cfg configuration
+            macroBody?.let { HashCode.compute(it) }
+        } else {
+            // No cfg_attr attributes - just use a hash of the text
+            owner.stubbedText?.let { HashCode.compute(it) }
+        }
     }
 
 fun RsPossibleMacroCall.resolveToMacroWithoutPsi(): RsMacroDataWithHash<*>? = when (this) {

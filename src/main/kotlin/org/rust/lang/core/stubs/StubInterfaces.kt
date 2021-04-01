@@ -6,15 +6,56 @@
 package org.rust.lang.core.stubs
 
 import com.intellij.util.BitUtil
-import org.rust.lang.core.psi.ext.QueryAttributes
-import org.rust.lang.core.psi.ext.RsDocAndAttributeOwner
-import org.rust.lang.core.psi.ext.getTraversedRawAttributes
-import org.rust.lang.core.psi.ext.name
+import org.rust.lang.core.psi.ext.*
 import org.rust.lang.core.resolve.KNOWN_DERIVABLE_TRAITS
 import org.rust.stdext.BitFlagsBuilder
+import org.rust.stdext.HashCode
 
 interface RsNamedStub {
     val name: String?
+}
+
+/**
+ * A common interface for stub for elements that can hold attribute or derive procedural macro attributes
+ */
+interface RsAttrProcMacroOwnerStub : RsAttributeOwnerStub {
+    /** Non-null if [mayHaveCustomDerive] is `true` */
+    val procMacroBody: String?
+
+    /** Non-null if [procMacroBody] is not `null` and [hasCfgAttr] is `false` */
+    val bodyHash: HashCode?
+
+    /**
+     * Text offset in parent ([com.intellij.psi.PsiElement.getStartOffsetInParent]) of the first keyword
+     * after outer attributes. `0` if [procMacroBody] is `null`.
+     *
+     * ```
+     *     #[foobar]
+     *     // comment
+     *     /// docs
+     *     #[baz]
+     *     pub const fn a(){}
+     *   //^ this offset
+     * ```
+     */
+    val endOfAttrsOffset: Int
+
+    companion object {
+        fun extractTextAndOffset(flags: Int, psi: RsStructOrEnumItemElement): Triple<String?, HashCode?, Int> {
+            val isProcMacro = BitUtil.isSet(flags, RsAttributeOwnerStub.HAS_CUSTOM_DERIVE)
+            return if (isProcMacro) {
+                val stubbedText = psi.stubbedText
+                val hash = if (stubbedText != null && !BitUtil.isSet(flags, RsAttributeOwnerStub.CFG_ATTR_MASK)) {
+                    HashCode.compute(stubbedText)
+                } else {
+                    null
+                }
+                Triple(stubbedText, hash, psi.endOfAttrsOffset)
+            } else {
+                Triple(null, null, 0)
+            }
+        }
+    }
 }
 
 /**

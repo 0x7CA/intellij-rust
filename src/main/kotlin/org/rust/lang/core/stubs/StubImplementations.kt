@@ -464,11 +464,12 @@ class RsUseSpeckStub(
 class RsStructItemStub(
     parent: StubElement<*>?, elementType: IStubElementType<*, *>,
     override val name: String?,
-    val procMacroBody: String?,
-    val endOfAttrsOffset: Int,
+    override val procMacroBody: String?,
+    override val bodyHash: HashCode?,
+    override val endOfAttrsOffset: Int,
     override val flags: Int
 ) : RsAttributeOwnerStubBase<RsStructItem>(parent, elementType),
-    RsNamedStub {
+    RsNamedStub, RsAttrProcMacroOwnerStub {
 
     val blockFields: StubElement<RsBlockFields>?
         get() = findChildStubByType(RsStubElementTypes.BLOCK_FIELDS)
@@ -482,6 +483,7 @@ class RsStructItemStub(
                 this,
                 dataStream.readNameAsString(),
                 dataStream.readUTFFastAsNullable(),
+                dataStream.readHashCodeNullable(),
                 dataStream.readVarInt(),
                 dataStream.readUnsignedByte()
             )
@@ -490,6 +492,7 @@ class RsStructItemStub(
             with(dataStream) {
                 writeName(stub.name)
                 writeUTFFastAsNullable(stub.procMacroBody)
+                writeHashCodeNullable(stub.bodyHash)
                 writeVarInt(stub.endOfAttrsOffset)
                 writeByte(stub.flags)
             }
@@ -500,12 +503,8 @@ class RsStructItemStub(
         override fun createStub(psi: RsStructItem, parentStub: StubElement<*>?): RsStructItemStub {
             var flags = RsAttributeOwnerStub.extractFlags(psi)
             flags = BitUtil.set(flags, IS_UNION_MASK, psi.kind == RsStructKind.UNION)
-            val (procMacroBody, endOfAttrsOffset) = if (BitUtil.isSet(flags, RsAttributeOwnerStub.HAS_CUSTOM_DERIVE)) {
-                psi.stubbedText to psi.endOfAttrsOffset
-            } else {
-                null to 0
-            }
-            return RsStructItemStub(parentStub, this, psi.name, procMacroBody, endOfAttrsOffset, flags)
+            val (procMacroBody, bodyHash, endOfAttrsOffset) = RsAttrProcMacroOwnerStub.extractTextAndOffset(flags, psi)
+            return RsStructItemStub(parentStub, this, psi.name, procMacroBody, bodyHash, endOfAttrsOffset, flags)
         }
 
         override fun indexStub(stub: RsStructItemStub, sink: IndexSink) = sink.indexStructItem(stub)
@@ -520,11 +519,12 @@ class RsStructItemStub(
 class RsEnumItemStub(
     parent: StubElement<*>?, elementType: IStubElementType<*, *>,
     override val name: String?,
-    val procMacroBody: String?,
-    val endOfAttrsOffset: Int,
+    override val procMacroBody: String?,
+    override val bodyHash: HashCode?,
+    override val endOfAttrsOffset: Int,
     override val flags: Int
 ) : RsAttributeOwnerStubBase<RsEnumItem>(parent, elementType),
-    RsNamedStub {
+    RsNamedStub, RsAttrProcMacroOwnerStub {
 
     val enumBody: StubElement<RsEnumBody>?
         get() = findChildStubByType(RsStubElementTypes.ENUM_BODY)
@@ -536,6 +536,7 @@ class RsEnumItemStub(
                 this,
                 dataStream.readNameAsString(),
                 dataStream.readUTFFastAsNullable(),
+                dataStream.readHashCodeNullable(),
                 dataStream.readVarInt(),
                 dataStream.readUnsignedByte()
             )
@@ -544,6 +545,7 @@ class RsEnumItemStub(
             with(dataStream) {
                 writeName(stub.name)
                 writeUTFFastAsNullable(stub.procMacroBody)
+                writeHashCodeNullable(stub.bodyHash)
                 writeVarInt(stub.endOfAttrsOffset)
                 writeByte(stub.flags)
             }
@@ -553,12 +555,8 @@ class RsEnumItemStub(
 
         override fun createStub(psi: RsEnumItem, parentStub: StubElement<*>?): RsEnumItemStub {
             val flags = RsAttributeOwnerStub.extractFlags(psi)
-            val (procMacroBody, endOfAttrsOffset) = if (BitUtil.isSet(flags, RsAttributeOwnerStub.HAS_CUSTOM_DERIVE)) {
-                psi.stubbedText to psi.endOfAttrsOffset
-            } else {
-                null to 0
-            }
-            return RsEnumItemStub(parentStub, this, psi.name, procMacroBody, endOfAttrsOffset, flags)
+            val (procMacroBody, bodyHash, endOfAttrsOffset) = RsAttrProcMacroOwnerStub.extractTextAndOffset(flags, psi)
+            return RsEnumItemStub(parentStub, this, psi.name, procMacroBody, bodyHash, endOfAttrsOffset, flags)
         }
 
 

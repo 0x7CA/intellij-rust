@@ -150,7 +150,7 @@ fun Sequence<RsMetaItem>.withFlattenCfgAttrsAttributes(withCfgAttrAttribute: Boo
         }
     }
 
-private val RsDocAndAttributeOwner.rawAttributes: QueryAttributes
+val RsDocAndAttributeOwner.rawAttributes: QueryAttributes
     get() = QueryAttributes(rawMetaItems)
 
 private val RsDocAndAttributeOwner.rawMetaItems: Sequence<RsMetaItem>
